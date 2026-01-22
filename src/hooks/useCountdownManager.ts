@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { CountdownSettings } from '../types';
 import type { SavedCountdown, CountdownCollection } from '../types/countdown-manager';
 
@@ -11,13 +11,17 @@ function generateId(): string {
 function loadCollection(): CountdownCollection {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
+    console.log('📂 Loading from localStorage:', saved ? 'Data found' : 'No data');
     if (saved) {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      console.log('✅ Loaded countdowns:', parsed.countdowns.length, 'countdowns');
+      return parsed;
     }
   } catch (error) {
-    console.error('Failed to load countdown collection:', error);
+    console.error('❌ Failed to load countdown collection:', error);
   }
 
+  console.log('📝 No saved data, returning empty collection');
   return {
     countdowns: [],
     activeCountdownId: null,
@@ -26,18 +30,30 @@ function loadCollection(): CountdownCollection {
 
 function saveCollection(collection: CountdownCollection): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(collection));
+    const jsonString = JSON.stringify(collection);
+    localStorage.setItem(STORAGE_KEY, jsonString);
+    console.log('💾 Saved to localStorage:', collection.countdowns.length, 'countdowns');
+
+    // Verify the save worked
+    const verification = localStorage.getItem(STORAGE_KEY);
+    if (verification === jsonString) {
+      console.log('✓ Save verified successfully');
+    } else {
+      console.error('⚠️ Save verification failed!');
+    }
   } catch (error) {
-    console.error('Failed to save countdown collection:', error);
+    console.error('❌ Failed to save countdown collection:', error);
   }
 }
 
 export function useCountdownManager(defaultSettings: CountdownSettings) {
   const [collection, setCollection] = useState<CountdownCollection>(() => {
+    console.log('🚀 Initializing countdown manager...');
     const loaded = loadCollection();
 
     // If no countdowns exist, create a default one
     if (loaded.countdowns.length === 0) {
+      console.log('🆕 Creating default countdown');
       const defaultCountdown: SavedCountdown = {
         id: generateId(),
         name: 'My Countdown',
@@ -55,11 +71,21 @@ export function useCountdownManager(defaultSettings: CountdownSettings) {
       return newCollection;
     }
 
+    console.log('✓ Using loaded collection with', loaded.countdowns.length, 'countdowns');
     return loaded;
   });
 
-  // Auto-save collection whenever it changes
+  // Track if this is the first render
+  const isFirstRender = useRef(true);
+
+  // Auto-save collection whenever it changes (skip first render since it's already saved)
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      console.log('⏭️ Skipping auto-save on first render');
+      return;
+    }
+    console.log('🔄 Auto-saving collection...');
     saveCollection(collection);
   }, [collection]);
 
