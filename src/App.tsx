@@ -38,6 +38,7 @@ function App() {
     switchCountdown,
     updateActiveCountdown,
     duplicateCountdown,
+    getStorageUsage,
   } = useCountdownManager(DEFAULT_SETTINGS);
 
   // Check for shared URL on mount
@@ -131,6 +132,7 @@ function App() {
         onRenameCountdown={renameCountdown}
         onSwitchCountdown={switchCountdown}
         onDuplicateCountdown={duplicateCountdown}
+        getStorageUsage={getStorageUsage}
       />
     </div>
   );

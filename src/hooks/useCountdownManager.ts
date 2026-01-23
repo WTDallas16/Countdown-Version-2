@@ -4,8 +4,48 @@ import type { SavedCountdown, CountdownCollection } from '../types/countdown-man
 
 const STORAGE_KEY = 'countdown-collection';
 
+// Approximate localStorage limit (varies by browser, typically 5-10MB)
+const APPROXIMATE_STORAGE_LIMIT = 5 * 1024 * 1024; // 5MB
+
 function generateId(): string {
   return `countdown-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+export function getStorageInfo() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) {
+      return {
+        usedBytes: 0,
+        usedKB: 0,
+        usedMB: 0,
+        percentUsed: 0,
+        limitMB: Math.round(APPROXIMATE_STORAGE_LIMIT / 1024 / 1024),
+      };
+    }
+
+    const usedBytes = new Blob([saved]).size;
+    const usedKB = Math.round(usedBytes / 1024);
+    const usedMB = (usedBytes / 1024 / 1024).toFixed(2);
+    const percentUsed = Math.round((usedBytes / APPROXIMATE_STORAGE_LIMIT) * 100);
+
+    return {
+      usedBytes,
+      usedKB,
+      usedMB: parseFloat(usedMB),
+      percentUsed,
+      limitMB: Math.round(APPROXIMATE_STORAGE_LIMIT / 1024 / 1024),
+    };
+  } catch (error) {
+    console.error('Failed to get storage info:', error);
+    return {
+      usedBytes: 0,
+      usedKB: 0,
+      usedMB: 0,
+      percentUsed: 0,
+      limitMB: 5,
+    };
+  }
 }
 
 function loadCollection(): CountdownCollection {
@@ -31,8 +71,12 @@ function loadCollection(): CountdownCollection {
 function saveCollection(collection: CountdownCollection): void {
   try {
     const jsonString = JSON.stringify(collection);
+    const sizeKB = Math.round(new Blob([jsonString]).size / 1024);
+
+    console.log('💾 Attempting to save:', collection.countdowns.length, 'countdowns,', sizeKB, 'KB');
+
     localStorage.setItem(STORAGE_KEY, jsonString);
-    console.log('💾 Saved to localStorage:', collection.countdowns.length, 'countdowns');
+    console.log('✓ Successfully saved to localStorage');
 
     // Verify the save worked
     const verification = localStorage.getItem(STORAGE_KEY);
@@ -42,7 +86,22 @@ function saveCollection(collection: CountdownCollection): void {
       console.error('⚠️ Save verification failed!');
     }
   } catch (error) {
-    console.error('❌ Failed to save countdown collection:', error);
+    if (error instanceof Error && error.name === 'QuotaExceededError') {
+      console.error('❌ STORAGE FULL! Cannot save countdowns.');
+      console.error('💡 Solution: Delete old countdowns or remove photos to free up space.');
+
+      // Show user-friendly alert
+      alert(
+        '⚠️ Storage Full!\n\n' +
+        'Your browser\'s storage is full. To save new countdowns:\n\n' +
+        '1. Delete old countdowns you no longer need\n' +
+        '2. Remove some photos from existing countdowns\n' +
+        '3. Clear your browser data\n\n' +
+        'Your current changes could not be saved.'
+      );
+    } else {
+      console.error('❌ Failed to save countdown collection:', error);
+    }
   }
 }
 
@@ -174,6 +233,10 @@ export function useCountdownManager(defaultSettings: CountdownSettings) {
     }));
   }, [collection.countdowns]);
 
+  const getStorageUsage = useCallback(() => {
+    return getStorageInfo();
+  }, []);
+
   return {
     countdowns: collection.countdowns,
     activeCountdown,
@@ -183,5 +246,6 @@ export function useCountdownManager(defaultSettings: CountdownSettings) {
     switchCountdown,
     updateActiveCountdown,
     duplicateCountdown,
+    getStorageUsage,
   };
 }

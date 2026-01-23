@@ -18,6 +18,13 @@ interface SettingsPanelProps {
   onRenameCountdown: (id: string, newName: string) => void;
   onSwitchCountdown: (id: string) => void;
   onDuplicateCountdown: (id: string) => void;
+  getStorageUsage: () => {
+    usedBytes: number;
+    usedKB: number;
+    usedMB: number;
+    percentUsed: number;
+    limitMB: number;
+  };
 }
 
 const SLIDESHOW_INTERVALS = [
@@ -38,9 +45,11 @@ export function SettingsPanel({
   onRenameCountdown,
   onSwitchCountdown,
   onDuplicateCountdown,
+  getStorageUsage,
 }: SettingsPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<string>('countdowns');
+  const storageInfo = getStorageUsage();
 
   const updateSettings = (updates: Partial<CountdownSettings>) => {
     onSettingsChange({ ...settings, ...updates });
@@ -134,15 +143,63 @@ export function SettingsPanel({
 
           {/* My Countdowns Section */}
           {activeSection === 'countdowns' && (
-            <CountdownManager
-              countdowns={countdowns}
-              activeCountdownId={activeCountdownId}
-              onSwitch={onSwitchCountdown}
-              onCreate={onCreateCountdown}
-              onRename={onRenameCountdown}
-              onDelete={onDeleteCountdown}
-              onDuplicate={onDuplicateCountdown}
-            />
+            <>
+              <CountdownManager
+                countdowns={countdowns}
+                activeCountdownId={activeCountdownId}
+                onSwitch={onSwitchCountdown}
+                onCreate={onCreateCountdown}
+                onRename={onRenameCountdown}
+                onDelete={onDeleteCountdown}
+                onDuplicate={onDuplicateCountdown}
+              />
+
+              {/* Storage Usage Indicator */}
+              <div className={`mt-4 p-3 rounded-lg border ${
+                storageInfo.percentUsed > 80
+                  ? 'bg-red-50 border-red-200'
+                  : storageInfo.percentUsed > 60
+                  ? 'bg-yellow-50 border-yellow-200'
+                  : 'bg-gray-50 border-gray-200'
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700">
+                    Storage Usage
+                  </span>
+                  <span className={`text-sm font-bold ${
+                    storageInfo.percentUsed > 80
+                      ? 'text-red-600'
+                      : storageInfo.percentUsed > 60
+                      ? 'text-yellow-600'
+                      : 'text-gray-600'
+                  }`}>
+                    {storageInfo.usedMB} MB / ~{storageInfo.limitMB} MB ({storageInfo.percentUsed}%)
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className={`h-2 rounded-full transition-all ${
+                      storageInfo.percentUsed > 80
+                        ? 'bg-red-500'
+                        : storageInfo.percentUsed > 60
+                        ? 'bg-yellow-500'
+                        : 'bg-blue-500'
+                    }`}
+                    style={{ width: `${Math.min(storageInfo.percentUsed, 100)}%` }}
+                  />
+                </div>
+                {storageInfo.percentUsed > 80 && (
+                  <p className="text-xs text-red-600 mt-2">
+                    Storage is almost full! Delete old countdowns or remove photos to free up space.
+                  </p>
+                )}
+                {storageInfo.percentUsed > 60 && storageInfo.percentUsed <= 80 && (
+                  <p className="text-xs text-yellow-600 mt-2">
+                    Storage is getting full. Consider removing unused countdowns or photos.
+                  </p>
+                )}
+              </div>
+            </>
           )}
 
           {/* Date & Time Section */}
