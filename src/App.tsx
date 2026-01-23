@@ -42,18 +42,37 @@ function App() {
 
   // Check for shared URL on mount
   useEffect(() => {
+    console.log('🔗 Checking for shared URL...');
     const urlState = getStateFromURL();
-    if (urlState && activeCountdown) {
-      // Load shared countdown and create a new one with it
-      const sharedName = `Shared - ${new Date().toLocaleDateString()}`;
-      createCountdown(sharedName);
-      // Update the newly created countdown with the shared settings
-      setTimeout(() => {
-        updateActiveCountdown(urlState);
-      }, 100);
-      // Clear URL hash
-      window.history.replaceState(null, '', window.location.pathname);
+
+    if (!urlState) {
+      console.log('📭 No shared URL state found');
+      return;
     }
+
+    console.log('📬 Shared URL detected! Loading settings...');
+
+    // Load shared countdown and create a new one with it
+    const sharedName = `Shared - ${new Date().toLocaleDateString()}`;
+    const newId = createCountdown(sharedName);
+
+    console.log('✓ Created new countdown:', sharedName, 'with ID:', newId);
+
+    // Update the newly created countdown with the shared settings
+    // Need a small delay to ensure the countdown is created in state
+    setTimeout(() => {
+      console.log('🔄 Updating countdown with shared settings...');
+      updateActiveCountdown(urlState);
+      console.log('✓ Shared settings applied!');
+    }, 150);
+
+    // Clear URL hash after loading
+    setTimeout(() => {
+      window.history.replaceState(null, '', window.location.pathname);
+      console.log('🧹 Cleared URL hash');
+    }, 200);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
 
   const settings = activeCountdown?.settings || DEFAULT_SETTINGS;

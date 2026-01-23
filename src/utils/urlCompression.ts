@@ -52,7 +52,12 @@ export function getStateFromURL(): CountdownSettings | null {
 
 export function updateURLWithState(state: CountdownSettings): void {
   const compressed = compressState(state);
+  console.log('🔗 Creating shareable URL...');
+  console.log('   Photos:', state.photos.length);
+  console.log('   Target date:', state.targetDate);
+  console.log('   Compressed size:', new Blob([compressed]).size, 'bytes');
   window.location.hash = `state=${compressed}`;
+  console.log('✓ URL updated with state');
 }
 
 export function getCompressedSize(state: CountdownSettings): number {
