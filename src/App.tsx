@@ -51,7 +51,16 @@ function App() {
       return;
     }
 
-    console.log('📬 Shared URL detected! Loading settings...');
+    // Check if this is a hash we created ourselves (for sharing)
+    const currentHash = window.location.hash;
+    const selfGeneratedHash = sessionStorage.getItem('self-generated-hash');
+
+    if (selfGeneratedHash === currentHash) {
+      console.log('🔄 This is a self-generated share link, not loading as new countdown');
+      return;
+    }
+
+    console.log('📬 Shared URL detected from external source! Loading settings...');
 
     // Load shared countdown and create a new one with it
     const sharedName = `Shared - ${new Date().toLocaleDateString()}`;
@@ -60,18 +69,16 @@ function App() {
     console.log('✓ Created new countdown:', sharedName, 'with ID:', newId);
 
     // Update the newly created countdown with the shared settings
-    // Need a small delay to ensure the countdown is created in state
     setTimeout(() => {
       console.log('🔄 Updating countdown with shared settings...');
       updateActiveCountdown(urlState);
       console.log('✓ Shared settings applied!');
-    }, 150);
 
-    // Clear URL hash after loading
-    setTimeout(() => {
+      // Clear the hash and sessionStorage after successfully loading
       window.history.replaceState(null, '', window.location.pathname);
-      console.log('🧹 Cleared URL hash');
-    }, 200);
+      sessionStorage.removeItem('self-generated-hash');
+      console.log('🧹 Cleared URL hash after loading shared countdown');
+    }, 150);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
@@ -97,6 +104,12 @@ function App() {
   const handleShare = () => {
     try {
       updateURLWithState(settings);
+
+      // Mark this hash as self-generated so we don't load it as a new countdown on refresh
+      const currentHash = window.location.hash;
+      sessionStorage.setItem('self-generated-hash', currentHash);
+      console.log('🔖 Marked hash as self-generated:', currentHash.substring(0, 50) + '...');
+
       return window.location.href;
     } catch (error) {
       console.error('Failed to create shareable URL:', error);

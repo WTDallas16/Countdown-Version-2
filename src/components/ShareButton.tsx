@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { CountdownSettings } from '../types';
 import { getCompressedSize, MAX_SAFE_URL_SIZE } from '../utils/urlCompression';
 
@@ -11,18 +11,37 @@ export function ShareButton({ settings, onShare }: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
   const [showError, setShowError] = useState(false);
+  const [hasGeneratedLink, setHasGeneratedLink] = useState(() => {
+    // Check if there's already a hash in the URL on mount
+    return window.location.hash.startsWith('#state=');
+  });
+
+  // Update hasGeneratedLink when hash changes
+  useEffect(() => {
+    const checkHash = () => {
+      setHasGeneratedLink(window.location.hash.startsWith('#state='));
+    };
+
+    window.addEventListener('hashchange', checkHash);
+    return () => window.removeEventListener('hashchange', checkHash);
+  }, []);
 
   const handleShare = async () => {
     const size = getCompressedSize(settings);
 
+    console.log('📊 Shareable URL size:', size, 'bytes (', Math.round(size / 1024), 'KB)');
+    console.log('📸 Photos to share:', settings.photos.length);
+
     if (size > MAX_SAFE_URL_SIZE * 2) {
       // Too large to even attempt
+      console.error('❌ URL too large to share:', Math.round(size / 1024), 'KB');
       setShowError(true);
       setTimeout(() => setShowError(false), 8000);
       return;
     }
 
     if (size > MAX_SAFE_URL_SIZE) {
+      console.warn('⚠️ URL size warning:', Math.round(size / 1024), 'KB - may not work in all browsers');
       setShowWarning(true);
       setTimeout(() => setShowWarning(false), 5000);
     }
@@ -30,15 +49,20 @@ export function ShareButton({ settings, onShare }: ShareButtonProps) {
     const url = onShare();
 
     if (!url) {
+      console.error('❌ Failed to generate shareable URL');
       setShowError(true);
       setTimeout(() => setShowError(false), 8000);
       return;
     }
 
+    console.log('✓ Generated shareable URL:', url.substring(0, 100) + '...');
+    setHasGeneratedLink(true);
+
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+      console.log('✓ URL copied to clipboard');
     } catch (error) {
       console.error('Failed to copy to clipboard:', error);
       // Fallback: select the URL
@@ -50,7 +74,15 @@ export function ShareButton({ settings, onShare }: ShareButtonProps) {
       document.body.removeChild(input);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+      console.log('✓ URL copied to clipboard (fallback method)');
     }
+  };
+
+  const handleClearLink = () => {
+    window.history.replaceState(null, '', window.location.pathname);
+    sessionStorage.removeItem('self-generated-hash');
+    setHasGeneratedLink(false);
+    console.log('🧹 Cleared share link from URL');
   };
 
   const sizeKB = Math.round(getCompressedSize(settings) / 1024);
@@ -65,12 +97,23 @@ export function ShareButton({ settings, onShare }: ShareButtonProps) {
         </p>
       </div>
 
-      <button
-        onClick={handleShare}
-        className="w-full px-4 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
-      >
-        {copied ? '✓ Link Copied!' : 'Generate Shareable Link'}
-      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={handleShare}
+          className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
+        >
+          {copied ? '✓ Link Copied!' : 'Generate Shareable Link'}
+        </button>
+        {hasGeneratedLink && (
+          <button
+            onClick={handleClearLink}
+            className="px-4 py-3 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 transition-colors"
+            title="Clear the share link from URL"
+          >
+            Clear
+          </button>
+        )}
+      </div>
 
       <p className="text-xs text-gray-500 text-center">
         Config size: {sizeKB}KB ({photoCount} photo{photoCount !== 1 ? 's' : ''})
